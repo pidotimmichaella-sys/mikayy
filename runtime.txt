@@ -1,1 +1,133 @@
-python-3.12.0
+from flask import Flask, jsonify, request, render_template_string
+
+app = Flask(__name__)
+
+# 🧠 Temporary "Database" (in-memory list)
+students = [
+    {"id": 1, "name": "Michaella Pedotim", "grade": 10, "section": "Zechariah"},
+    {"id": 2, "name": "John Doe", "grade": 9, "section": "Gabriel"},
+]
+
+# 🏠 Home route — Beautiful Dashboard
+@app.route('/')
+def home():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Flask Student CRUD API</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            body {
+                background: linear-gradient(135deg, #6dd5ed, #2193b0);
+                color: white;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            .container {
+                margin-top: 8%;
+            }
+            .card {
+                background-color: rgba(255,255,255,0.15);
+                border: none;
+                border-radius: 15px;
+                padding: 20px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            }
+            .btn {
+                border-radius: 10px;
+            }
+            pre {
+                color: #fff;
+                background: rgba(0,0,0,0.4);
+                padding: 15px;
+                border-radius: 10px;
+                text-align: left;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container text-center">
+            <div class="card">
+                <h1>🎓 Student CRUD API</h1>
+                <p class="lead">Sharpening Minds, Shaping Futures</p>
+                <a href="/students" class="btn btn-light btn-lg mt-2">View JSON Data</a>
+                <hr>
+                <h5>🧩 Endpoints:</h5>
+                <pre>
+GET    /students            → Get all students
+GET    /students/&lt;id&gt;       → Get one student
+POST   /students            → Add new student
+PUT    /students/&lt;id&gt;       → Update student
+DELETE /students/&lt;id&gt;       → Delete student
+                </pre>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
+
+# 🟢 READ — Get all students
+@app.route('/students', methods=['GET'])
+def get_students():
+    return jsonify(students)
+
+
+# 🟢 READ (single)
+@app.route('/students/<int:student_id>', methods=['GET'])
+def get_student(student_id):
+    student = next((s for s in students if s["id"] == student_id), None)
+    if student:
+        return jsonify(student)
+    return jsonify({"error": "Student not found"}), 404
+
+
+# 🟡 CREATE — Add new student
+@app.route('/students', methods=['POST'])
+def add_student():
+    data = request.get_json()
+    if not data or not all(k in data for k in ("name", "grade", "section")):
+        return jsonify({"error": "Invalid input"}), 400
+    
+    new_id = max(s["id"] for s in students) + 1 if students else 1
+    new_student = {
+        "id": new_id,
+        "name": data["name"],
+        "grade": data["grade"],
+        "section": data["section"]
+    }
+    students.append(new_student)
+    return jsonify({"message": "Student added successfully", "student": new_student}), 201
+
+
+# 🟠 UPDATE — Edit student info
+@app.route('/students/<int:student_id>', methods=['PUT'])
+def update_student(student_id):
+    data = request.get_json()
+    student = next((s for s in students if s["id"] == student_id), None)
+    if not student:
+        return jsonify({"error": "Student not found"}), 404
+    
+    student.update({
+        "name": data.get("name", student["name"]),
+        "grade": data.get("grade", student["grade"]),
+        "section": data.get("section", student["section"])
+    })
+    return jsonify({"message": "Student updated successfully", "student": student})
+
+
+# 🔴 DELETE — Remove student
+@app.route('/students/<int:student_id>', methods=['DELETE'])
+def delete_student(student_id):
+    global students
+    student = next((s for s in students if s["id"] == student_id), None)
+    if not student:
+        return jsonify({"error": "Student not found"}), 404
+    students = [s for s in students if s["id"] != student_id]
+    return jsonify({"message": "Student deleted successfully"})
+
+
+# 🧩 Run app
+if __name__ == '__main__':
+    app.run(debug=True)
